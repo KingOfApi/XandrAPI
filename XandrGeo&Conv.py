@@ -143,21 +143,20 @@ tab1, tab2 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater"])
 # --- Tab 1: Geo Targeting Updater ---
 with tab1:
     st.header("Geo Targeting Updater")
-    st.sidebar.header("Geo Targeting Inputs")
-    country_name_input = st.sidebar.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States")
-    city_name_input = st.sidebar.text_input("City Name (Optional)", placeholder="e.g., Stockholm")
-    insertion_order_id_input = st.sidebar.text_input(
+    country_name_input = st.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States")
+    city_name_input = st.text_input("City Name (Optional)", placeholder="e.g., Stockholm")
+    insertion_order_id_input = st.text_input(
         "Insertion Order ID (Optional)", 
         placeholder="Enter a valid Insertion Order ID",
         help="Provide the Insertion Order ID to update all line items within it."
     )
-    line_item_ids_input = st.sidebar.text_area(
+    line_item_ids_input = st.text_area(
         "Line Item IDs (Optional)", 
         placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
         help="Provide the line item IDs you want to update. Leave blank to skip line item updates."
     )
 
-    if st.sidebar.button("Update Geo Targeting"):
+    if st.button("Update Geo Targeting"):
         # Check if the API token is available
         api_token = st.session_state.get("api_token")
         if not api_token:
@@ -259,24 +258,23 @@ with tab1:
 # --- Tab 2: Conversion Pixel Updater ---
 with tab2:
     st.header("Conversion Pixel Updater")
-    st.sidebar.header("Conversion Pixel Inputs")
-    insertion_order_id_input = st.sidebar.text_input(
+    insertion_order_id_input = st.text_input(
         "Insertion Order ID (Optional)", 
         placeholder="Enter a valid Insertion Order ID",
         help="Provide the Insertion Order ID to update all line items with the new conversion pixel."
     )
-    line_item_ids_input = st.sidebar.text_area(
+    line_item_ids_input = st.text_area(
         "Line Item IDs (Optional)", 
         placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
         help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
     )
-    new_pixel_id_input = st.sidebar.text_input(
+    new_pixel_id_input = st.text_input(
         "New Conversion Pixel ID", 
         placeholder="Enter the new conversion pixel ID",
         help="Provide the ID of the new conversion pixel to apply."
     )
 
-    if st.sidebar.button("Update Conversion Pixels"):
+    if st.button("Update Conversion Pixels"):
         # Check if the API token is available
         api_token = st.session_state.get("api_token")
         if not api_token:
