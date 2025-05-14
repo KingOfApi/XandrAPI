@@ -137,26 +137,51 @@ def authenticate(username: str, password: str) -> str | None:
 st.set_page_config(layout="wide")
 st.title("Xandr Tools: Geo Targeting, Conversion Pixels & Reporting")
 
+# --- Login Section ---
+st.sidebar.header("Login")
+username = st.sidebar.text_input("Username", placeholder="Enter your username")
+password = st.sidebar.text_input("Password", placeholder="Enter your password", type="password")
+login_button = st.sidebar.button("Log In")
+
+# Store the token in session state
+if "api_token" not in st.session_state:
+    st.session_state["api_token"] = None
+
+if login_button:
+    if username and password:
+        # Authenticate and retrieve the token
+        token = authenticate(username, password)
+        if token:
+            st.session_state["api_token"] = token
+            st.sidebar.success("Logged in successfully!")
+        else:
+            st.sidebar.error("Login failed. Please check your credentials.")
+    else:
+        st.sidebar.error("Please enter both username and password.")
+
 # Tabs for different tools
 tab1, tab2, tab3 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater", "Reporting"])
 
 # --- Tab 1: Geo Targeting Updater ---
 with tab1:
     st.header("Geo Targeting Updater")
-    country_name_input = st.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States")
-    city_name_input = st.text_input("City Name (Optional)", placeholder="e.g., Stockholm")
-    insertion_order_id_input = st.text_input(
-        "Insertion Order ID (Optional)", 
-        placeholder="Enter a valid Insertion Order ID",
-        help="Provide the Insertion Order ID to update all line items within it."
-    )
-    line_item_ids_input = st.text_area(
-        "Line Item IDs (Optional)", 
-        placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
-        help="Provide the line item IDs you want to update. Leave blank to skip line item updates."
-    )
-    if st.button("Update Geo Targeting"):
-        st.write("Processing Geo Targeting...")  # Placeholder for logic
+    if st.session_state["api_token"] is None:
+        st.error("Please log in to use this tool.")
+    else:
+        country_name_input = st.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States")
+        city_name_input = st.text_input("City Name (Optional)", placeholder="e.g., Stockholm")
+        insertion_order_id_input = st.text_input(
+            "Insertion Order ID (Optional)", 
+            placeholder="Enter a valid Insertion Order ID",
+            help="Provide the Insertion Order ID to update all line items within it."
+        )
+        line_item_ids_input = st.text_area(
+            "Line Item IDs (Optional)", 
+            placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
+            help="Provide the line item IDs you want to update. Leave blank to skip line item updates."
+        )
+        if st.button("Update Geo Targeting"):
+            st.write("Processing Geo Targeting...")  # Placeholder for logic
 
 # --- Tab 2: Conversion Pixel Updater ---
 with tab2:
@@ -182,47 +207,59 @@ with tab2:
 # --- Tab 3: Reporting ---
 with tab3:
     st.header("Reporting: Site Domain Performance")
-    report_type = st.selectbox(
-        "Select Report Type",
-        ["Network Site Domain Performance", "Insertion Order Site Domain Performance"]
-    )
-    insertion_order_id_input = st.text_input(
-        "Insertion Order ID (Required for Insertion Order Report)",
-        placeholder="Enter Insertion Order ID"
-    )
-    report_interval = st.selectbox(
-        "Select Report Interval",
-        ["today", "yesterday", "last_7_days", "last_48_hours"]
-    )
-    columns = st.multiselect(
-        "Select Columns",
-        [
-            "site_domain", "mobile_application_name", "insertion_order_id", "insertion_order_name",
-            "line_item_id", "line_item_name", "geo_country_name", "imps", "clicks", "ctr",
-            "total_convs", "convs_rate", "booked_revenue", "cpm", "view_rate"
-        ],
-        default=["site_domain", "imps", "clicks", "ctr", "booked_revenue"]
-    )
-    if st.button("Generate Report"):
-        if report_type == "Insertion Order Site Domain Performance" and not insertion_order_id_input.strip():
-            st.error("Insertion Order ID is required for Insertion Order Site Domain Performance reports.")
-        else:
-            # Construct the report payload
-            report_payload = {
-                "report": {
-                    "report_type": "network_site_domain_performance" if report_type == "Network Site Domain Performance" else "site_domain_performance",
-                    "report_interval": report_interval,
-                    "columns": columns,
-                    "format": "csv"
+    if st.session_state["api_token"] is None:
+        st.error("Please log in to use this tool.")
+    else:
+        report_type = st.selectbox(
+            "Select Report Type",
+            ["Network Site Domain Performance", "Insertion Order Site Domain Performance"]
+        )
+        insertion_order_id_input = st.text_input(
+            "Insertion Order ID (Required for Insertion Order Report)",
+            placeholder="Enter Insertion Order ID"
+        )
+        report_interval = st.selectbox(
+            "Select Report Interval",
+            ["today", "yesterday", "last_7_days", "last_48_hours"]
+        )
+        columns = st.multiselect(
+            "Select Columns",
+            [
+                "site_domain", "mobile_application_name", "insertion_order_id", "insertion_order_name",
+                "line_item_id", "line_item_name", "geo_country_name", "imps", "clicks", "ctr",
+                "total_convs", "convs_rate", "booked_revenue", "cpm", "view_rate"
+            ],
+            default=["site_domain", "imps", "clicks", "ctr", "booked_revenue"]
+        )
+        if st.button("Generate Report"):
+            if report_type == "Insertion Order Site Domain Performance" and not insertion_order_id_input.strip():
+                st.error("Insertion Order ID is required for Insertion Order Site Domain Performance reports.")
+            else:
+                # Construct the report payload
+                report_payload = {
+                    "report": {
+                        "report_type": "network_site_domain_performance" if report_type == "Network Site Domain Performance" else "site_domain_performance",
+                        "report_interval": report_interval,
+                        "columns": columns,
+                        "format": "csv"
+                    }
                 }
-            }
 
-            # Add insertion_order_id to the endpoint if required
-            endpoint = f"{XANDR_BASE_URL}/report"
-            if report_type == "Insertion Order Site Domain Performance":
-                endpoint += f"?insertion_order_id={insertion_order_id_input.strip()}"
+                # Add insertion_order_id to the endpoint if required
+                endpoint = f"{XANDR_BASE_URL}/report"
+                if report_type == "Insertion Order Site Domain Performance":
+                    endpoint += f"?insertion_order_id={insertion_order_id_input.strip()}"
 
-            # Placeholder for API request logic
-            st.write("Generating report with the following parameters:")
-            st.json(report_payload)
-            st.write(f"API Endpoint: {endpoint}")
+                # Make the API request to generate the report
+                try:
+                    response = requests.post(endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
+                    response.raise_for_status()
+                    report_id = response.json().get("report_id")
+                    
+                    download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
+                    report_data = requests.get(download_url, headers={"Authorization": st.session_state["api_token"]})
+                    with open("report.csv", "wb") as file:
+                        file.write(report_data.content)
+                    st.success("Report downloaded successfully!")
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
