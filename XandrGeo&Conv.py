@@ -18,93 +18,95 @@ XANDR_BASE_URL = "https://api.appnexus.com"
 def get_cities_for_country(token: str, country_name: str, city_name: str = None) -> list[dict] | None:
     """Fetches city IDs for a given country and optionally filters by city name."""
     url = f"{XANDR_BASE_URL}/city"
-    params = {'name': country_name}
     headers = {"Authorization": token}
 
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params={"name": city_name or ""})
         response.raise_for_status()
         json_response = response.json()
 
         if 'response' not in json_response or 'cities' not in json_response['response']:
             st.error(f"Unexpected API response structure when fetching cities for {country_name}.")
-            st.json(json_response)  # Show the problematic response
+            st.json(json_response)  # Debugging
             return None
 
         cities_data = json_response['response']['cities']
-        filtered_data = []
-        for city in cities_data:
-            # Filter by country name (case-insensitive)
-            if city.get('country_name', '').strip().lower() == country_name.strip().lower():
-                # Optionally filter by city name (case-insensitive)
-                if city_name and city.get('name', '').strip().lower() != city_name.strip().lower():
-                    continue
-                filtered_data.append({"id": city['id']})
+        filtered_data = [
+            {"id": city['id']}
+            for city in cities_data
+            if city['country_name'].strip().lower() == country_name.strip().lower()
+        ]
 
         if not filtered_data:
             st.warning(f"No cities found for country: {country_name} and city: {city_name}.")
             return None
+
         return filtered_data
-    except requests.exceptions.RequestException as e:
-        st.error(f"API Error fetching cities: {e}")
-        logging.error(f"API Error fetching cities: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            st.json(e.response.json())
-        return None
     except Exception as e:
-        st.error(f"An unexpected error occurred while fetching cities: {e}")
+        st.error(f"Error fetching cities: {e}")
         return None
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def update_line_item_profile_geo(token, profile_id, city_targets):
+def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list[dict]) -> bool:
     """Updates the geo targeting for a given profile ID."""
-    url = f"{XANDR_BASE_URL}/profile?id={profile_id}"  # ID in query param for PUT on profile
+    url = f"{XANDR_BASE_URL}/profile?id={profile_id}"
     headers = {"Authorization": token}
     data = {
         "profile": {
             "id": profile_id,
             "city_targets": city_targets,
-            "city_action": "include"  # This will replace existing city targets
+            "city_action": "include"
         }
     }
+
     try:
         response = requests.put(url, headers=headers, json=data)
         response.raise_for_status()
-        json_response = response.json()
-
-        # Check if the response contains the expected keys
-        if 'response' not in json_response or 'status' not in json_response['response']:
-            st.error(f"Unexpected API response structure while updating profile ID {profile_id}.")
-            st.json(json_response)  # Show the problematic response
-            return None
-
-        return json_response
-    except requests.exceptions.RequestException as e:
-        st.error(f"API Error updating profile ID {profile_id}: {e}")
-        if hasattr(e, 'response') and e.response is not None:
-            st.json(e.response.json())
-        return None
+        return True
     except Exception as e:
-        st.error(f"An unexpected error occurred while updating profile: {e}")
-        return None
+        st.error(f"Error updating geo targeting for profile ID {profile_id}: {e}")
+        return False
 
 def get_line_item_ids_from_io(token: str, insertion_order_id: int) -> list[int] | None:
     """Fetches line item IDs for a given insertion order ID."""
-    url = f"{XANDR_BASE_URL}/line-items?insertion_order_id={insertion_order_id}"
+    url = f"{XANDR_BASE_URL}/insertion-order?id={insertion_order_id}"
     headers = {"Authorization": token}
+
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         json_response = response.json()
-        return [item['id'] for item in json_response.get('response', {}).get('line_items', [])]
+
+        if 'response' not in json_response or 'insertion-order' not in json_response['response']:
+            st.error(f"Unexpected API response structure for insertion order ID: {insertion_order_id}.")
+            st.json(json_response)  # Debugging
+            return None
+
+        line_items = json_response['response']['insertion-order']['line_items']
+        return [item['id'] for item in line_items]
     except Exception as e:
-        logging.error(f"Error fetching line item IDs: {e}")
+        st.error(f"Error fetching line item IDs: {e}")
         return None
 
 def get_profile_id_for_line_item(token: str, line_item_id: int) -> int | None:
     """Fetches the profile ID for a given line item ID."""
-    # Placeholder implementation
-    return 54321  # Replace with actual API call logic
+    url = f"{XANDR_BASE_URL}/line-item?id={line_item_id}"
+    headers = {"Authorization": token}
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        json_response = response.json()
+
+        if 'response' not in json_response or 'line-item' not in json_response['response']:
+            st.error(f"Unexpected API response structure for line item ID: {line_item_id}.")
+            st.json(json_response)  # Debugging
+            return None
+
+        return json_response['response']['line-item']['profile_id']
+    except Exception as e:
+        st.error(f"Error fetching profile ID for line item ID {line_item_id}: {e}")
+        return None
 
 def authenticate(username: str, password: str) -> str | None:
     """Authenticates the user and retrieves the API token."""
@@ -209,11 +211,8 @@ with tab1:
                     st.error("No line items found for the provided Insertion Order ID.")
                     st.stop()
             else:
-                # Use the provided line item IDs
-                line_item_ids = [int(id.strip()) for id in line_item_ids_input.split(",") if id.strip().isdigit()]
-                if not line_item_ids:
-                    st.error("No valid Line Item IDs provided.")
-                    st.stop()
+                st.error("Insertion Order ID is required.")
+                st.stop()
 
             # Update geo targeting for each line item
             for line_item_id in line_item_ids:
@@ -222,8 +221,8 @@ with tab1:
                     st.error(f"Profile ID not found for Line Item ID: {line_item_id}")
                     continue
 
-                response = update_line_item_profile_geo(st.session_state["api_token"], profile_id, city_targets)
-                if response:
+                success = update_line_item_profile_geo(st.session_state["api_token"], profile_id, city_targets)
+                if success:
                     st.success(f"Geo targeting updated for Line Item ID: {line_item_id}")
                 else:
                     st.error(f"Failed to update geo targeting for Line Item ID: {line_item_id}")
