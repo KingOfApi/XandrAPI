@@ -267,7 +267,7 @@ with tab1:
         line_item_ids_input = st.text_area(
             "Line Item IDs (Optional)", 
             placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
-            help="Provide the line item IDs you want to update. Leave blank to skip line item updates."
+            help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
         )
         if st.button("Update Geo Targeting"):
             if not country_name_input.strip():
@@ -280,14 +280,19 @@ with tab1:
                 st.error("No valid city targets found. Please check your inputs.")
                 st.stop()
 
-            # Fetch line item IDs
-            if insertion_order_id_input.strip():
+            # Determine line items to update
+            line_item_ids = []
+            if line_item_ids_input.strip():
+                # Parse line item IDs from user input
+                line_item_ids = [int(item.strip()) for item in line_item_ids_input.split(",") if item.strip().isdigit()]
+            elif insertion_order_id_input.strip():
+                # Fetch line item IDs from the insertion order
                 line_item_ids = get_line_item_ids_from_io(st.session_state["api_token"], int(insertion_order_id_input.strip()))
                 if not line_item_ids:
                     st.error("No line items found for the provided Insertion Order ID.")
                     st.stop()
             else:
-                st.error("Insertion Order ID is required.")
+                st.error("Either Line Item IDs or an Insertion Order ID is required.")
                 st.stop()
 
             # Update geo targeting for each line item
