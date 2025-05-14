@@ -31,17 +31,13 @@ def get_cities_for_country(token: str, country_name: str, city_name: str = None)
             st.json(json_response)  # Show the problematic response
             return None
 
-        if not isinstance(json_response.get('response', {}).get('cities', []), list):
-            st.error("Unexpected API response structure.")
-            return None
-
         cities_data = json_response['response']['cities']
         filtered_data = []
         for city in cities_data:
-            # Filter by country name
-            if city.get('country_name', '').lower() == country_name.lower():
-                # Optionally filter by city name
-                if city_name and city.get('name', '').lower() != city_name.lower():
+            # Filter by country name (case-insensitive)
+            if city.get('country_name', '').strip().lower() == country_name.strip().lower():
+                # Optionally filter by city name (case-insensitive)
+                if city_name and city.get('name', '').strip().lower() != city_name.strip().lower():
                     continue
                 filtered_data.append({"id": city['id']})
 
