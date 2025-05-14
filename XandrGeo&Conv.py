@@ -201,23 +201,26 @@ with tab1:
 # --- Tab 2: Conversion Pixel Updater ---
 with tab2:
     st.header("Conversion Pixel Updater")
-    insertion_order_id_input = st.text_input(
-        "Insertion Order ID (Optional)", 
-        placeholder="Enter a valid Insertion Order ID",
-        help="Provide the Insertion Order ID to update all line items with the new conversion pixel."
-    )
-    line_item_ids_input = st.text_area(
-        "Line Item IDs (Optional)", 
-        placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
-        help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
-    )
-    new_pixel_id_input = st.text_input(
-        "New Conversion Pixel ID", 
-        placeholder="Enter the new conversion pixel ID",
-        help="Provide the ID of the new conversion pixel to apply."
-    )
-    if st.button("Update Conversion Pixels"):
-        st.write("Processing Conversion Pixel Updates...")  # Placeholder for logic
+    if st.session_state["api_token"] is None:
+        st.error("Please log in to use this tool.")
+    else:
+        insertion_order_id_input = st.text_input(
+            "Insertion Order ID (Optional)", 
+            placeholder="Enter a valid Insertion Order ID",
+            help="Provide the Insertion Order ID to update all line items with the new conversion pixel."
+        )
+        line_item_ids_input = st.text_area(
+            "Line Item IDs (Optional)", 
+            placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
+            help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
+        )
+        new_pixel_id_input = st.text_input(
+            "New Conversion Pixel ID", 
+            placeholder="Enter the new conversion pixel ID",
+            help="Provide the ID of the new conversion pixel to apply."
+        )
+        if st.button("Update Conversion Pixels"):
+            st.write("Processing Conversion Pixel Updates...")  # Placeholder for logic
 
 # --- Tab 3: Reporting ---
 with tab3:
