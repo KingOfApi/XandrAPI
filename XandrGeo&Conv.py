@@ -338,6 +338,7 @@ with tab3:
             json_response = make_api_request("POST", endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
             if not json_response:
                 return
+            logging.info(f"API Response: {json_response}")
             st.json(json_response)  # Debugging: Display the API response
             report_id = json_response.get("report_id")
             if not report_id:
@@ -353,22 +354,18 @@ with tab3:
                     status_response = requests.get(status_url, headers={"Authorization": st.session_state["api_token"]})
                     status_response.raise_for_status()
                     status_data = status_response.json()
-                    st.json(status_data)  # Debugging: Display the status response
                     if status_data.get("execution_status") == "ready":
                         break
                     elif status_data.get("execution_status") == "error":
                         st.error("An error occurred while generating the report.")
-                        st.json(status_data)  # Debugging: Display the error details
                         return
-                    st.info("Report is being generated... Please wait.")
-                    time.sleep(5)  # Wait before polling again
+                    time.sleep(5)
                     retries += 1
                 except Exception as e:
                     st.error(f"An error occurred while checking report status: {e}")
                     return
             else:
                 st.error("Report generation timed out. Please try again later.")
-                return
 
             # Download the Report
             try:
@@ -380,12 +377,6 @@ with tab3:
                 file_name = f"site_domain_performance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
                 with open(file_name, "wb") as file:
                     file.write(report_data.content)
-                st.download_button(
-                    label="Download Report",
-                    data=report_data.content,
-                    file_name=file_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
             except Exception as e:
                 st.error(f"An error occurred while downloading the report: {e}")
                 return
