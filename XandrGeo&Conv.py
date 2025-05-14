@@ -143,14 +143,68 @@ tab1, tab2, tab3 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater",
 # --- Tab 1: Geo Targeting Updater ---
 with tab1:
     st.header("Geo Targeting Updater")
-    st.write("This is the Geo Targeting Updater tab.")
+    country_name_input = st.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States")
+    city_name_input = st.text_input("City Name (Optional)", placeholder="e.g., Stockholm")
+    insertion_order_id_input = st.text_input(
+        "Insertion Order ID (Optional)", 
+        placeholder="Enter a valid Insertion Order ID",
+        help="Provide the Insertion Order ID to update all line items within it."
+    )
+    line_item_ids_input = st.text_area(
+        "Line Item IDs (Optional)", 
+        placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
+        help="Provide the line item IDs you want to update. Leave blank to skip line item updates."
+    )
+    if st.button("Update Geo Targeting"):
+        st.write("Processing Geo Targeting...")  # Placeholder for logic
 
 # --- Tab 2: Conversion Pixel Updater ---
 with tab2:
     st.header("Conversion Pixel Updater")
-    st.write("This is the Conversion Pixel Updater tab.")
+    insertion_order_id_input = st.text_input(
+        "Insertion Order ID (Optional)", 
+        placeholder="Enter a valid Insertion Order ID",
+        help="Provide the Insertion Order ID to update all line items with the new conversion pixel."
+    )
+    line_item_ids_input = st.text_area(
+        "Line Item IDs (Optional)", 
+        placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
+        help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
+    )
+    new_pixel_id_input = st.text_input(
+        "New Conversion Pixel ID", 
+        placeholder="Enter the new conversion pixel ID",
+        help="Provide the ID of the new conversion pixel to apply."
+    )
+    if st.button("Update Conversion Pixels"):
+        st.write("Processing Conversion Pixel Updates...")  # Placeholder for logic
 
 # --- Tab 3: Reporting ---
 with tab3:
     st.header("Reporting: Site Domain Performance")
-    st.write("This is the Reporting tab.")
+    report_type = st.selectbox(
+        "Select Report Type",
+        ["Network Site Domain Performance", "Advertiser Site Domain Performance"]
+    )
+    advertiser_id_input = st.text_input(
+        "Advertiser ID (Required for Advertiser Report)",
+        placeholder="Enter Advertiser ID"
+    )
+    report_interval = st.selectbox(
+        "Select Report Interval",
+        ["today", "yesterday", "last_7_days", "last_48_hours"]
+    )
+    columns = st.multiselect(
+        "Select Columns",
+        [
+            "site_domain", "mobile_application_name", "insertion_order_id", "insertion_order_name",
+            "line_item_id", "line_item_name", "geo_country_name", "imps", "clicks", "ctr",
+            "total_convs", "convs_rate", "booked_revenue", "cpm", "view_rate"
+        ],
+        default=["site_domain", "imps", "clicks", "ctr", "booked_revenue"]
+    )
+    if st.button("Generate Report"):
+        if report_type == "Advertiser Site Domain Performance" and not advertiser_id_input.strip():
+            st.error("Advertiser ID is required for Advertiser Site Domain Performance reports.")
+        else:
+            st.write("Generating report...")  # Placeholder for logic
