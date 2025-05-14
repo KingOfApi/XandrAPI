@@ -257,19 +257,21 @@ with tab1:
     if st.session_state["api_token"] is None:
         st.error("Please log in to use this tool.")
     else:
-        country_name_input = st.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States")
-        city_name_input = st.text_input("City Name (Optional)", placeholder="e.g., Stockholm")
+        country_name_input = st.text_input("Country Name", placeholder="e.g., Sweden, Germany, United States", key="geo_country_name")
+        city_name_input = st.text_input("City Name (Optional)", placeholder="e.g., Stockholm", key="geo_city_name")
         insertion_order_id_input = st.text_input(
             "Insertion Order ID (Optional)", 
             placeholder="Enter a valid Insertion Order ID",
-            help="Provide the Insertion Order ID to update all line items within it."
+            help="Provide the Insertion Order ID to update all line items within it.",
+            key="geo_insertion_order_id"
         )
         line_item_ids_input = st.text_area(
             "Line Item IDs (Optional)", 
             placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
-            help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
+            help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order.",
+            key="geo_line_item_ids"
         )
-        if st.button("Update Geo Targeting"):
+        if st.button("Update Geo Targeting", key="geo_update_button"):
             if not country_name_input.strip():
                 st.error("Country Name is required.")
                 st.stop()
@@ -317,19 +319,22 @@ with tab2:
         insertion_order_id_input = st.text_input(
             "Insertion Order ID (Optional)", 
             placeholder="Enter a valid Insertion Order ID",
-            help="Provide the Insertion Order ID to update all line items with the new conversion pixel."
+            help="Provide the Insertion Order ID to update all line items with the new conversion pixel.",
+            key="pixel_insertion_order_id"
         )
         line_item_ids_input = st.text_area(
             "Line Item IDs (Optional)", 
             placeholder="Enter line item IDs separated by commas (e.g., 12345, 67890, 11223)",
-            help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order."
+            help="Provide the line item IDs you want to update. Leave blank to update all line items in the insertion order.",
+            key="pixel_line_item_ids"
         )
         new_pixel_id_input = st.text_input(
             "New Conversion Pixel ID", 
             placeholder="Enter the new conversion pixel ID",
-            help="Provide the ID of the new conversion pixel to apply."
+            help="Provide the ID of the new conversion pixel to apply.",
+            key="pixel_new_pixel_id"
         )
-        if st.button("Update Conversion Pixels"):
+        if st.button("Update Conversion Pixels", key="pixel_update_button"):
             st.write("Processing Conversion Pixel Updates...")  # Placeholder for logic
 
 # --- Tab 3: Reporting ---
