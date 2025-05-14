@@ -257,56 +257,123 @@ with tab3:
     if st.session_state["api_token"] is None:
         st.error("Please log in to use this tool.")
     else:
+        # Report Type Selection
         report_type = st.selectbox(
             "Select Report Type",
-            ["Network Site Domain Performance", "Insertion Order Site Domain Performance"]
+            ["Site Domain Performance"]
         )
-        insertion_order_id_input = st.text_input(
-            "Insertion Order ID (Required for Insertion Order Report)",
-            placeholder="Enter Insertion Order ID"
-        )
-        report_interval = st.selectbox(
-            "Select Report Interval",
-            ["today", "yesterday", "last_7_days", "last_48_hours"]
-        )
+
+        # Date Range Selection
+        use_custom_dates = st.checkbox("Use Custom Date Range")
+        if use_custom_dates:
+            start_date = st.date_input("Start Date")
+            end_date = st.date_input("End Date")
+        else:
+            report_interval = st.selectbox(
+                "Select Report Interval",
+                ["yesterday", "last_7_days", "month_to_yesterday", "month_to_date"]
+            )
+
+        # Columns Selection
         columns = st.multiselect(
             "Select Columns",
             [
-                "site_domain", "mobile_application_name", "insertion_order_id", "insertion_order_name",
-                "line_item_id", "line_item_name", "geo_country_name", "imps", "clicks", "ctr",
-                "total_convs", "convs_rate", "booked_revenue", "cpm", "view_rate"
+                "day", "site_domain", "imps", "clicks", "total_convs", "ctr",
+                "convs_rate", "booked_revenue", "cpm"
             ],
-            default=["site_domain", "imps", "clicks", "ctr", "booked_revenue"]
+            default=["day", "site_domain", "imps", "clicks", "ctr", "booked_revenue"]
         )
+
+        # Advertiser ID Input (if required)
+        advertiser_id_input = st.text_input(
+            "Advertiser ID (Required for Network Users)",
+            placeholder="Enter Advertiser ID"
+        )
+
+        # Generate Report Button
         if st.button("Generate Report"):
-            if report_type == "Insertion Order Site Domain Performance" and not insertion_order_id_input.strip():
-                st.error("Insertion Order ID is required for Insertion Order Site Domain Performance reports.")
-            else:
-                # Construct the report payload
-                report_payload = {
-                    "report": {
-                        "report_type": "network_site_domain_performance" if report_type == "Network Site Domain Performance" else "site_domain_performance",
-                        "report_interval": report_interval,
-                        "columns": columns,
-                        "format": "csv"
-                    }
+            # Validate Inputs
+            if use_custom_dates:
+                if not start_date or not end_date:
+                    st.error("Both Start Date and End Date are required for custom date ranges.")
+                    st.stop()
+                if start_date >= end_date:
+                    st.error("Start Date must be earlier than End Date.")
+                    st.stop()
+            elif not report_interval:
+                st.error("Please select a report interval.")
+                st.stop()
+
+            if not advertiser_id_input.strip():
+                st.error("Advertiser ID is required for network users.")
+                st.stop()
+
+            # Construct the Report Payload
+            report_payload = {
+                "report": {
+                    "report_type": "site_domain_performance",
+                    "columns": columns,
+                    "format": "xlsx"  # Change format to XLSX
                 }
+            }
 
-                # Add insertion_order_id to the endpoint if required
-                endpoint = f"{XANDR_BASE_URL}/report"
-                if report_type == "Insertion Order Site Domain Performance":
-                    endpoint += f"?insertion_order_id={insertion_order_id_input.strip()}"
+            # Add Date Range or Interval
+            if use_custom_dates:
+                report_payload["report"]["start_date"] = start_date.strftime("%Y-%m-%d")
+                report_payload["report"]["end_date"] = end_date.strftime("%Y-%m-%d")
+            else:
+                report_payload["report"]["report_interval"] = report_interval
 
-                # Make the API request to generate the report
+            # API Endpoint
+            endpoint = f"{XANDR_BASE_URL}/report?advertiser_id={advertiser_id_input.strip()}"
+
+            # Make the API Request to Generate the Report
+            try:
+                response = requests.post(endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
+                response.raise_for_status()
+                json_response = response.json()
+                st.json(json_response)  # Debugging: Display the API response
+                report_id = json_response.get("report_id")
+                if not report_id:
+                    st.error("Failed to retrieve report ID. Please check the API response.")
+                    return
+            except Exception as e:
+                st.error(f"An error occurred while generating the report: {e}")
+                return
+
+            # Poll for Report Status
+            status_url = f"{XANDR_BASE_URL}/report?id={report_id}"
+            while True:
                 try:
-                    response = requests.post(endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
-                    response.raise_for_status()
-                    report_id = response.json().get("report_id")
-                    
-                    download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
-                    report_data = requests.get(download_url, headers={"Authorization": st.session_state["api_token"]})
-                    with open("report.csv", "wb") as file:
-                        file.write(report_data.content)
-                    st.success("Report downloaded successfully!")
+                    status_response = requests.get(status_url, headers={"Authorization": st.session_state["api_token"]})
+                    status_response.raise_for_status()
+                    status_data = status_response.json()
+                    st.json(status_data)  # Debugging: Display the status response
+                    if status_data.get("execution_status") == "ready":
+                        break
+                    elif status_data.get("execution_status") == "error":
+                        st.error("An error occurred while generating the report.")
+                        st.json(status_data)  # Debugging: Display the error details
+                        return
+                    st.info("Report is being generated... Please wait.")
+                    time.sleep(5)  # Wait before polling again
                 except Exception as e:
-                    st.error(f"An error occurred: {e}")
+                    st.error(f"An error occurred while checking report status: {e}")
+                    return
+
+            # Download the Report
+            try:
+                download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
+                report_data = requests.get(download_url, headers={"Authorization": st.session_state["api_token"]})
+                report_data.raise_for_status()
+                with open("site_domain_performance.xlsx", "wb") as file:
+                    file.write(report_data.content)
+                st.success("Report downloaded successfully!")
+                st.download_button(
+                    label="Download Report",
+                    data=report_data.content,
+                    file_name="site_domain_performance.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            except Exception as e:
+                st.error(f"An error occurred while downloading the report: {e}")
