@@ -135,10 +135,10 @@ def authenticate(username: str, password: str) -> str | None:
 
 # --- Streamlit UI ---
 st.set_page_config(layout="wide")
-st.title("Xandr Tools: Geo Targeting & Conversion Pixels")
+st.title("Xandr Tools: Geo Targeting, Conversion Pixels & Reporting")
 
 # Tabs for different tools
-tab1, tab2 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater"])
+tab1, tab2, tab3 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater", "Reporting"])
 
 # --- Tab 1: Geo Targeting Updater ---
 with tab1:
@@ -365,3 +365,73 @@ with tab2:
         st.success(f"Successfully updated {success_count} line item(s).")
         if failure_count > 0:
             st.error(f"Failed to update {failure_count} line item(s). Check logs above for details.")
+
+# --- Tab 3: Reporting ---
+with tab3:
+    st.header("Reporting: Site Domain Performance")
+    report_type = st.selectbox(
+        "Select Report Type",
+        ["Network Site Domain Performance", "Advertiser Site Domain Performance"]
+    )
+    advertiser_id_input = st.text_input(
+        "Advertiser ID (Required for Advertiser Report)",
+        placeholder="Enter Advertiser ID"
+    )
+    report_interval = st.selectbox(
+        "Select Report Interval",
+        ["today", "yesterday", "last_7_days", "last_48_hours"]
+    )
+    columns = st.multiselect(
+        "Select Columns",
+        [
+            "site_domain", "mobile_application_name", "insertion_order_id", "insertion_order_name",
+            "line_item_id", "line_item_name", "geo_country_name", "imps", "clicks", "ctr",
+            "total_convs", "convs_rate", "booked_revenue", "cpm", "view_rate"
+        ],
+        default=["site_domain", "imps", "clicks", "ctr", "booked_revenue"]
+    )
+    if st.button("Generate Report"):
+        # Validate inputs
+        if report_type == "Advertiser Site Domain Performance" and not advertiser_id_input.strip():
+            st.error("Advertiser ID is required for Advertiser Site Domain Performance reports.")
+            st.stop()
+
+        # Construct JSON payload
+        report_payload = {
+            "report": {
+                "report_type": "network_site_domain_performance" if report_type == "Network Site Domain Performance" else "site_domain_performance",
+                "report_interval": report_interval,
+                "columns": columns,
+                "format": "csv"
+            }
+        }
+
+        # Add advertiser_id to the endpoint if required
+        endpoint = f"{XANDR_BASE_URL}/report"
+        if report_type == "Advertiser Site Domain Performance":
+            endpoint += f"?advertiser_id={advertiser_id_input.strip()}"
+
+        # Make API request
+        try:
+            response = requests.post(endpoint, headers={"Authorization": st.session_state.get("api_token")}, json=report_payload)
+            response.raise_for_status()
+            report_id = response.json().get("report_id")
+            st.success(f"Report requested successfully. Report ID: {report_id}")
+
+            # Poll for report status
+            status_url = f"{XANDR_BASE_URL}/report?id={report_id}"
+            while True:
+                status_response = requests.get(status_url, headers={"Authorization": st.session_state.get("api_token")})
+                status_response.raise_for_status()
+                status_data = status_response.json()
+                if status_data.get("execution_status") == "ready":
+                    st.success("Report is ready for download.")
+                    download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
+                    st.write(f"[Download Report]({download_url})")
+                    break
+                elif status_data.get("execution_status") == "error":
+                    st.error("An error occurred while generating the report.")
+                    break
+                st.info("Report is still processing. Please wait...")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
