@@ -138,15 +138,22 @@ def authenticate(username: str, password: str) -> str | None:
 st.set_page_config(layout="wide")
 st.title("Xandr Tools: Geo Targeting, Conversion Pixels & Reporting")
 
+# Initialize session state variables
+if "api_token" not in st.session_state:
+    st.session_state["api_token"] = None
+if "username" not in st.session_state:
+    st.session_state["username"] = None
+
 # --- Login Section ---
 st.sidebar.header("Login")
 
 # Check if the user is already logged in
-if st.session_state.get("api_token"):
-    st.sidebar.success(f"Logged in as {username}")
+if st.session_state["api_token"]:
+    st.sidebar.success(f"Logged in as {st.session_state['username']}")
     logout_button = st.sidebar.button("Log Out")
     if logout_button:
         st.session_state["api_token"] = None
+        st.session_state["username"] = None
         st.sidebar.info("You have been logged out.")
 else:
     # Show the login form if the user is not logged in
@@ -160,6 +167,7 @@ else:
             token = authenticate(username, password)
             if token:
                 st.session_state["api_token"] = token
+                st.session_state["username"] = username
                 st.sidebar.success("Logged in successfully!")
             else:
                 st.sidebar.error("Login failed. Please check your credentials.")
