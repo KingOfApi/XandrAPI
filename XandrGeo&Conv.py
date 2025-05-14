@@ -331,13 +331,15 @@ with tab3:
             # Make the API Request to Generate the Report
             json_response = make_api_request("POST", endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
             if not json_response:
-                return
+                st.error("Failed to generate the report. Please check the API response.")
+                return  # Ensure this is inside the `if st.button` block
+
             logging.info(f"API Response: {json_response}")
             st.json(json_response)  # Debugging: Display the API response
             report_id = json_response.get("report_id")
             if not report_id:
                 st.error("Failed to retrieve report ID. Please check the API response.")
-                return
+                return  # Ensure this is inside the `if st.button` block
 
             # Poll for Report Status
             status_url = f"{XANDR_BASE_URL}/report?id={report_id}"
@@ -353,16 +355,16 @@ with tab3:
                     elif status_data.get("execution_status") == "error":
                         st.error("An error occurred while generating the report.")
                         logging.error(f"Report generation error: {status_data}")
-                        return
+                        return  # Ensure this is inside the `if st.button` block
                     time.sleep(5)
                     retries += 1
                 except Exception as e:
                     st.error(f"An error occurred while checking report status: {e}")
                     logging.error(f"Error while polling report status: {e}")
-                    return
+                    return  # Ensure this is inside the `if st.button` block
             else:
                 st.error("Report generation timed out. Please try again later.")
-                return
+                return  # Ensure this is inside the `if st.button` block
 
             # Download the Report
             try:
@@ -384,4 +386,4 @@ with tab3:
             except Exception as e:
                 st.error(f"An error occurred while downloading the report: {e}")
                 logging.error(f"Error while downloading the report: {e}")
-                return
+                return  # Ensure this is inside the `if st.button` block
