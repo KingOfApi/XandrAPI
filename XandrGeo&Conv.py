@@ -184,11 +184,11 @@ with tab3:
     st.header("Reporting: Site Domain Performance")
     report_type = st.selectbox(
         "Select Report Type",
-        ["Network Site Domain Performance", "Advertiser Site Domain Performance"]
+        ["Network Site Domain Performance", "Insertion Order Site Domain Performance"]
     )
-    advertiser_id_input = st.text_input(
-        "Advertiser ID (Required for Advertiser Report)",
-        placeholder="Enter Advertiser ID"
+    insertion_order_id_input = st.text_input(
+        "Insertion Order ID (Required for Insertion Order Report)",
+        placeholder="Enter Insertion Order ID"
     )
     report_interval = st.selectbox(
         "Select Report Interval",
@@ -204,7 +204,25 @@ with tab3:
         default=["site_domain", "imps", "clicks", "ctr", "booked_revenue"]
     )
     if st.button("Generate Report"):
-        if report_type == "Advertiser Site Domain Performance" and not advertiser_id_input.strip():
-            st.error("Advertiser ID is required for Advertiser Site Domain Performance reports.")
+        if report_type == "Insertion Order Site Domain Performance" and not insertion_order_id_input.strip():
+            st.error("Insertion Order ID is required for Insertion Order Site Domain Performance reports.")
         else:
-            st.write("Generating report...")  # Placeholder for logic
+            # Construct the report payload
+            report_payload = {
+                "report": {
+                    "report_type": "network_site_domain_performance" if report_type == "Network Site Domain Performance" else "site_domain_performance",
+                    "report_interval": report_interval,
+                    "columns": columns,
+                    "format": "csv"
+                }
+            }
+
+            # Add insertion_order_id to the endpoint if required
+            endpoint = f"{XANDR_BASE_URL}/report"
+            if report_type == "Insertion Order Site Domain Performance":
+                endpoint += f"?insertion_order_id={insertion_order_id_input.strip()}"
+
+            # Placeholder for API request logic
+            st.write("Generating report with the following parameters:")
+            st.json(report_payload)
+            st.write(f"API Endpoint: {endpoint}")
