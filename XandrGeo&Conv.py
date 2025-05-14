@@ -130,6 +130,77 @@ def authenticate(username: str, password: str) -> str | None:
         logging.error(f"Error during authentication: {e}")
         return None
 
+def generate_and_poll_report(advertiser_id_input, use_custom_dates, start_date, end_date, report_interval, report_payload):
+    # Add Date Range or Interval
+    if use_custom_dates:
+        report_payload["report"]["start_date"] = start_date.strftime("%Y-%m-%d")
+        report_payload["report"]["end_date"] = end_date.strftime("%Y-%m-%d")
+    else:
+        report_payload["report"]["report_interval"] = report_interval
+
+    # API Endpoint
+    endpoint = f"{XANDR_BASE_URL}/report?advertiser_id={advertiser_id_input.strip()}"
+
+    # Make the API Request to Generate the Report
+    json_response = make_api_request("POST", endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
+    if not json_response:
+        st.error("Failed to generate the report. Please check the API response.")
+        return
+
+    logging.info(f"API Response: {json_response}")
+    st.json(json_response)  # Debugging: Display the API response
+    report_id = json_response.get("report_id")
+    if not report_id:
+        st.error("Failed to retrieve report ID. Please check the API response.")
+        return
+
+    # Poll for Report Status
+    status_url = f"{XANDR_BASE_URL}/report?id={report_id}"
+    max_retries = 10
+    retries = 0
+    while retries < max_retries:
+        try:
+            status_response = requests.get(status_url, headers={"Authorization": st.session_state["api_token"]})
+            status_response.raise_for_status()
+            status_data = status_response.json()
+            if status_data.get("execution_status") == "ready":
+                break
+            elif status_data.get("execution_status") == "error":
+                st.error("An error occurred while generating the report.")
+                logging.error(f"Report generation error: {status_data}")
+                return
+            time.sleep(5)
+            retries += 1
+        except Exception as e:
+            st.error(f"An error occurred while checking report status: {e}")
+            logging.error(f"Error while polling report status: {e}")
+            return
+    else:
+        st.error("Report generation timed out. Please try again later.")
+        return
+
+    # Download the Report
+    try:
+        download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
+        report_data = requests.get(download_url, headers={"Authorization": st.session_state["api_token"]})
+        report_data.raise_for_status()
+        from datetime import datetime
+
+        file_name = f"site_domain_performance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        with open(file_name, "wb") as file:
+            file.write(report_data.content)
+        st.success("Report downloaded successfully!")
+        st.download_button(
+            label="Download Report",
+            data=report_data.content,
+            file_name=file_name,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        st.error(f"An error occurred while downloading the report: {e}")
+        logging.error(f"Error while downloading the report: {e}")
+        return
+
 # --- Streamlit UI ---
 st.set_page_config(layout="wide")
 st.title("Xandr Tools: Geo Targeting, Conversion Pixels & Reporting")
@@ -319,72 +390,4 @@ with tab3:
                 }
             }
 
-            # Add Date Range or Interval
-            if use_custom_dates:
-                report_payload["report"]["start_date"] = start_date.strftime("%Y-%m-%d")
-                report_payload["report"]["end_date"] = end_date.strftime("%Y-%m-%d")
-            else:
-                report_payload["report"]["report_interval"] = report_interval
-
-            # API Endpoint
-            endpoint = f"{XANDR_BASE_URL}/report?advertiser_id={advertiser_id_input.strip()}"
-
-            # Make the API Request to Generate the Report
-            json_response = make_api_request("POST", endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
-            if not json_response:
-                st.error("Failed to generate the report. Please check the API response.")
-                return
-
-            logging.info(f"API Response: {json_response}")
-            st.json(json_response)  # Debugging: Display the API response
-            report_id = json_response.get("report_id")
-            if not report_id:
-                st.error("Failed to retrieve report ID. Please check the API response.")
-                return
-
-            # Poll for Report Status
-            status_url = f"{XANDR_BASE_URL}/report?id={report_id}"
-            max_retries = 10
-            retries = 0
-            while retries < max_retries:
-                try:
-                    status_response = requests.get(status_url, headers={"Authorization": st.session_state["api_token"]})
-                    status_response.raise_for_status()
-                    status_data = status_response.json()
-                    if status_data.get("execution_status") == "ready":
-                        break
-                    elif status_data.get("execution_status") == "error":
-                        st.error("An error occurred while generating the report.")
-                        logging.error(f"Report generation error: {status_data}")
-                        return
-                    time.sleep(5)
-                    retries += 1
-                except Exception as e:
-                    st.error(f"An error occurred while checking report status: {e}")
-                    logging.error(f"Error while polling report status: {e}")
-                    return
-            else:
-                st.error("Report generation timed out. Please try again later.")
-                return
-
-            # Download the Report
-            try:
-                download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
-                report_data = requests.get(download_url, headers={"Authorization": st.session_state["api_token"]})
-                report_data.raise_for_status()
-                from datetime import datetime
-
-                file_name = f"site_domain_performance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-                with open(file_name, "wb") as file:
-                    file.write(report_data.content)
-                st.success("Report downloaded successfully!")
-                st.download_button(
-                    label="Download Report",
-                    data=report_data.content,
-                    file_name=file_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            except Exception as e:
-                st.error(f"An error occurred while downloading the report: {e}")
-                logging.error(f"Error while downloading the report: {e}")
-                return
+            generate_and_poll_report(advertiser_id_input, use_custom_dates, start_date, end_date, report_interval, report_payload)
