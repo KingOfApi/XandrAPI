@@ -336,7 +336,7 @@ with tab3:
                 report_id = json_response.get("report_id")
                 if not report_id:
                     st.error("Failed to retrieve report ID. Please check the API response.")
-                    return
+                    pass  # Placeholder to avoid syntax errors
             except Exception as e:
                 st.error(f"An error occurred while generating the report: {e}")
                 return
