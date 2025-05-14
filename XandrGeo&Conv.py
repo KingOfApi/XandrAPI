@@ -3,6 +3,7 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_exponential  # Added for retry mechanism
 import logging
 from concurrent.futures import ThreadPoolExecutor
+import time
 
 logging.basicConfig(filename="app.log", level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
