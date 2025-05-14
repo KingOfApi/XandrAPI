@@ -21,6 +21,11 @@ def make_api_request(method, url, headers=None, params=None, json=None):
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"API request failed: {e}")
+        logging.error(f"API request failed: {e}")
+        return None
+    except ValueError as e:
+        st.error(f"Invalid JSON response: {e}")
+        logging.error(f"Invalid JSON response: {e}")
         return None
 
 def get_cities_for_country(token: str, country_name: str, city_name: str = None) -> list[dict] | None:
@@ -32,11 +37,9 @@ def get_cities_for_country(token: str, country_name: str, city_name: str = None)
     if not json_response:
         return None
 
-    logging.info(f"API Response: {json_response}")
-
     if 'response' not in json_response or 'cities' not in json_response['response']:
         st.error(f"Unexpected API response structure when fetching cities for {country_name}.")
-        st.json(json_response)  # Debugging
+        logging.error(f"Unexpected API response: {json_response}")
         return None
 
     cities_data = json_response['response']['cities']
@@ -69,8 +72,9 @@ def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list
         response = requests.put(url, headers=headers, json=data)
         response.raise_for_status()
         return True
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         st.error(f"Error updating geo targeting for profile ID {profile_id}: {e}")
+        logging.error(f"Error updating geo targeting for profile ID {profile_id}: {e}")
         return False
 
 def get_line_item_ids_from_io(token: str, insertion_order_id: int) -> list[int] | None:
@@ -82,11 +86,9 @@ def get_line_item_ids_from_io(token: str, insertion_order_id: int) -> list[int] 
     if not json_response:
         return None
 
-    logging.info(f"API Response: {json_response}")
-
     if 'response' not in json_response or 'insertion-order' not in json_response['response']:
         st.error(f"Unexpected API response structure for insertion order ID: {insertion_order_id}.")
-        st.json(json_response)  # Debugging
+        logging.error(f"Unexpected API response: {json_response}")
         return None
 
     line_items = json_response['response']['insertion-order']['line_items']
@@ -101,11 +103,9 @@ def get_profile_id_for_line_item(token: str, line_item_id: int) -> int | None:
     if not json_response:
         return None
 
-    logging.info(f"API Response: {json_response}")
-
     if 'response' not in json_response or 'line-item' not in json_response['response']:
         st.error(f"Unexpected API response structure for line item ID: {line_item_id}.")
-        st.json(json_response)  # Debugging
+        logging.error(f"Unexpected API response: {json_response}")
         return None
 
     return json_response['response']['line-item']['profile_id']
@@ -114,25 +114,19 @@ def authenticate(username: str, password: str) -> str | None:
     """Authenticates the user and retrieves the API token."""
     credentials = f'{{"auth": {{"username": "{username}", "password": "{password}"}}}}'
     try:
-        # Send the credentials as raw data in the `data` parameter
         response = requests.post(f"{XANDR_BASE_URL}/auth", data=credentials)
         response.raise_for_status()
         json_response = response.json()
-        logging.info(f"API Response: {json_response}")
 
         if 'response' in json_response and 'token' in json_response['response']:
             return json_response['response']['token']
         else:
             st.error("Authentication failed. Please check your credentials.")
-            st.json(json_response)  # Show the problematic response for debugging
+            logging.error(f"Authentication failed: {json_response}")
             return None
     except requests.exceptions.RequestException as e:
         st.error(f"Error during authentication: {e}")
-        logging.error("Error during authentication: Redacted sensitive data.")
-        return None
-    except Exception as e:
-        st.error(f"An unexpected error occurred during authentication: {e}")
-        logging.error(f"Unexpected error during authentication: {e}")
+        logging.error(f"Error during authentication: {e}")
         return None
 
 # --- Streamlit UI ---
@@ -358,14 +352,17 @@ with tab3:
                         break
                     elif status_data.get("execution_status") == "error":
                         st.error("An error occurred while generating the report.")
+                        logging.error(f"Report generation error: {status_data}")
                         return
                     time.sleep(5)
                     retries += 1
                 except Exception as e:
                     st.error(f"An error occurred while checking report status: {e}")
+                    logging.error(f"Error while polling report status: {e}")
                     return
             else:
                 st.error("Report generation timed out. Please try again later.")
+                return
 
             # Download the Report
             try:
@@ -377,6 +374,14 @@ with tab3:
                 file_name = f"site_domain_performance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
                 with open(file_name, "wb") as file:
                     file.write(report_data.content)
+                st.success("Report downloaded successfully!")
+                st.download_button(
+                    label="Download Report",
+                    data=report_data.content,
+                    file_name=file_name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
             except Exception as e:
                 st.error(f"An error occurred while downloading the report: {e}")
+                logging.error(f"Error while downloading the report: {e}")
                 return
