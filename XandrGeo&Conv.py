@@ -196,7 +196,41 @@ with tab1:
             help="Provide the line item IDs you want to update. Leave blank to skip line item updates."
         )
         if st.button("Update Geo Targeting"):
-            st.write("Processing Geo Targeting...")  # Placeholder for logic
+            if not country_name_input.strip():
+                st.error("Country Name is required.")
+                st.stop()
+
+            # Fetch city targets
+            city_targets = get_cities_for_country(st.session_state["api_token"], country_name_input, city_name_input)
+            if not city_targets:
+                st.error("No valid city targets found. Please check your inputs.")
+                st.stop()
+
+            # Fetch line item IDs
+            if insertion_order_id_input.strip():
+                line_item_ids = get_line_item_ids_from_io(st.session_state["api_token"], int(insertion_order_id_input.strip()))
+                if not line_item_ids:
+                    st.error("No line items found for the provided Insertion Order ID.")
+                    st.stop()
+            else:
+                # Use the provided line item IDs
+                line_item_ids = [int(id.strip()) for id in line_item_ids_input.split(",") if id.strip().isdigit()]
+                if not line_item_ids:
+                    st.error("No valid Line Item IDs provided.")
+                    st.stop()
+
+            # Update geo targeting for each line item
+            for line_item_id in line_item_ids:
+                profile_id = get_profile_id_for_line_item(st.session_state["api_token"], line_item_id)
+                if not profile_id:
+                    st.error(f"Profile ID not found for Line Item ID: {line_item_id}")
+                    continue
+
+                response = update_line_item_profile_geo(st.session_state["api_token"], profile_id, city_targets)
+                if response:
+                    st.success(f"Geo targeting updated for Line Item ID: {line_item_id}")
+                else:
+                    st.error(f"Failed to update geo targeting for Line Item ID: {line_item_id}")
 
 # --- Tab 2: Conversion Pixel Updater ---
 with tab2:
