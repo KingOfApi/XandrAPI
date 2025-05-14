@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import pprint  # For debugging, can be removed from final UI output
 from tenacity import retry, stop_after_attempt, wait_exponential  # Added for retry mechanism
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -15,36 +14,43 @@ XANDR_BASE_URL = "https://api.appnexus.com"
 
 # --- Helper Functions (Refactored from your script) ---
 
+def make_api_request(method, url, headers=None, params=None, json=None):
+    try:
+        response = requests.request(method, url, headers=headers, params=params, json=json)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"API request failed: {e}")
+        return None
+
 def get_cities_for_country(token: str, country_name: str, city_name: str = None) -> list[dict] | None:
     """Fetches city IDs for a given country and optionally filters by city name."""
     url = f"{XANDR_BASE_URL}/city"
     headers = {"Authorization": token}
 
-    try:
-        response = requests.get(url, headers=headers, params={"name": city_name or ""})
-        response.raise_for_status()
-        json_response = response.json()
-
-        if 'response' not in json_response or 'cities' not in json_response['response']:
-            st.error(f"Unexpected API response structure when fetching cities for {country_name}.")
-            st.json(json_response)  # Debugging
-            return None
-
-        cities_data = json_response['response']['cities']
-        filtered_data = [
-            {"id": city['id']}
-            for city in cities_data
-            if city['country_name'].strip().lower() == country_name.strip().lower()
-        ]
-
-        if not filtered_data:
-            st.warning(f"No cities found for country: {country_name} and city: {city_name}.")
-            return None
-
-        return filtered_data
-    except Exception as e:
-        st.error(f"Error fetching cities: {e}")
+    json_response = make_api_request("GET", url, headers=headers, params={"name": city_name or ""})
+    if not json_response:
         return None
+
+    logging.info(f"API Response: {json_response}")
+
+    if 'response' not in json_response or 'cities' not in json_response['response']:
+        st.error(f"Unexpected API response structure when fetching cities for {country_name}.")
+        st.json(json_response)  # Debugging
+        return None
+
+    cities_data = json_response['response']['cities']
+    filtered_data = [
+        {"id": city['id']}
+        for city in cities_data
+        if city['country_name'].strip().lower() == country_name.strip().lower()
+    ]
+
+    if not filtered_data:
+        st.warning(f"No cities found for country: {country_name} and city: {city_name}.")
+        return None
+
+    return filtered_data
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list[dict]) -> bool:
@@ -72,41 +78,37 @@ def get_line_item_ids_from_io(token: str, insertion_order_id: int) -> list[int] 
     url = f"{XANDR_BASE_URL}/insertion-order?id={insertion_order_id}"
     headers = {"Authorization": token}
 
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        json_response = response.json()
-
-        if 'response' not in json_response or 'insertion-order' not in json_response['response']:
-            st.error(f"Unexpected API response structure for insertion order ID: {insertion_order_id}.")
-            st.json(json_response)  # Debugging
-            return None
-
-        line_items = json_response['response']['insertion-order']['line_items']
-        return [item['id'] for item in line_items]
-    except Exception as e:
-        st.error(f"Error fetching line item IDs: {e}")
+    json_response = make_api_request("GET", url, headers=headers)
+    if not json_response:
         return None
+
+    logging.info(f"API Response: {json_response}")
+
+    if 'response' not in json_response or 'insertion-order' not in json_response['response']:
+        st.error(f"Unexpected API response structure for insertion order ID: {insertion_order_id}.")
+        st.json(json_response)  # Debugging
+        return None
+
+    line_items = json_response['response']['insertion-order']['line_items']
+    return [item['id'] for item in line_items]
 
 def get_profile_id_for_line_item(token: str, line_item_id: int) -> int | None:
     """Fetches the profile ID for a given line item ID."""
     url = f"{XANDR_BASE_URL}/line-item?id={line_item_id}"
     headers = {"Authorization": token}
 
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        json_response = response.json()
-
-        if 'response' not in json_response or 'line-item' not in json_response['response']:
-            st.error(f"Unexpected API response structure for line item ID: {line_item_id}.")
-            st.json(json_response)  # Debugging
-            return None
-
-        return json_response['response']['line-item']['profile_id']
-    except Exception as e:
-        st.error(f"Error fetching profile ID for line item ID {line_item_id}: {e}")
+    json_response = make_api_request("GET", url, headers=headers)
+    if not json_response:
         return None
+
+    logging.info(f"API Response: {json_response}")
+
+    if 'response' not in json_response or 'line-item' not in json_response['response']:
+        st.error(f"Unexpected API response structure for line item ID: {line_item_id}.")
+        st.json(json_response)  # Debugging
+        return None
+
+    return json_response['response']['line-item']['profile_id']
 
 def authenticate(username: str, password: str) -> str | None:
     """Authenticates the user and retrieves the API token."""
@@ -116,6 +118,7 @@ def authenticate(username: str, password: str) -> str | None:
         response = requests.post(f"{XANDR_BASE_URL}/auth", data=credentials)
         response.raise_for_status()
         json_response = response.json()
+        logging.info(f"API Response: {json_response}")
 
         if 'response' in json_response and 'token' in json_response['response']:
             return json_response['response']['token']
@@ -308,6 +311,10 @@ with tab3:
                 st.error("Advertiser ID is required for network users.")
                 st.stop()
 
+            if not advertiser_id_input.strip().isdigit():
+                st.error("Advertiser ID must be a numeric value.")
+                st.stop()
+
             # Construct the Report Payload
             report_payload = {
                 "report": {
@@ -328,22 +335,20 @@ with tab3:
             endpoint = f"{XANDR_BASE_URL}/report?advertiser_id={advertiser_id_input.strip()}"
 
             # Make the API Request to Generate the Report
-            try:
-                response = requests.post(endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
-                response.raise_for_status()
-                json_response = response.json()
-                st.json(json_response)  # Debugging: Display the API response
-                report_id = json_response.get("report_id")
-                if not report_id:
-                    st.error("Failed to retrieve report ID. Please check the API response.")
-                    pass  # Placeholder to avoid syntax errors
-            except Exception as e:
-                st.error(f"An error occurred while generating the report: {e}")
+            json_response = make_api_request("POST", endpoint, headers={"Authorization": st.session_state["api_token"]}, json=report_payload)
+            if not json_response:
+                return
+            st.json(json_response)  # Debugging: Display the API response
+            report_id = json_response.get("report_id")
+            if not report_id:
+                st.error("Failed to retrieve report ID. Please check the API response.")
                 return
 
             # Poll for Report Status
             status_url = f"{XANDR_BASE_URL}/report?id={report_id}"
-            while True:
+            max_retries = 10
+            retries = 0
+            while retries < max_retries:
                 try:
                     status_response = requests.get(status_url, headers={"Authorization": st.session_state["api_token"]})
                     status_response.raise_for_status()
@@ -357,22 +362,28 @@ with tab3:
                         return
                     st.info("Report is being generated... Please wait.")
                     time.sleep(5)  # Wait before polling again
+                    retries += 1
                 except Exception as e:
                     st.error(f"An error occurred while checking report status: {e}")
                     return
+            else:
+                st.error("Report generation timed out. Please try again later.")
+                return
 
             # Download the Report
             try:
                 download_url = f"{XANDR_BASE_URL}/report-download?id={report_id}"
                 report_data = requests.get(download_url, headers={"Authorization": st.session_state["api_token"]})
                 report_data.raise_for_status()
-                with open("site_domain_performance.xlsx", "wb") as file:
+                from datetime import datetime
+
+                file_name = f"site_domain_performance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                with open(file_name, "wb") as file:
                     file.write(report_data.content)
-                st.success("Report downloaded successfully!")
                 st.download_button(
                     label="Download Report",
                     data=report_data.content,
-                    file_name="site_domain_performance.xlsx",
+                    file_name=file_name,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
             except Exception as e:
