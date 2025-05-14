@@ -112,9 +112,10 @@ def get_profile_id_for_line_item(token: str, line_item_id: int) -> int | None:
 
 def authenticate(username: str, password: str) -> str | None:
     """Authenticates the user and retrieves the API token."""
-    credentials = {"auth": {"username": username, "password": password}}
+    credentials = f'{{"auth": {{"username": "{username}", "password": "{password}"}}}}'
     try:
-        response = requests.post(f"{XANDR_BASE_URL}/auth", json=credentials)
+        # Send the credentials as raw data in the `data` parameter
+        response = requests.post(f"{XANDR_BASE_URL}/auth", data=credentials)
         response.raise_for_status()
         json_response = response.json()
 
