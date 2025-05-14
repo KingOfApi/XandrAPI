@@ -140,25 +140,31 @@ st.title("Xandr Tools: Geo Targeting, Conversion Pixels & Reporting")
 
 # --- Login Section ---
 st.sidebar.header("Login")
-username = st.sidebar.text_input("Username", placeholder="Enter your username")
-password = st.sidebar.text_input("Password", placeholder="Enter your password", type="password")
-login_button = st.sidebar.button("Log In")
 
-# Store the token in session state
-if "api_token" not in st.session_state:
-    st.session_state["api_token"] = None
+# Check if the user is already logged in
+if st.session_state.get("api_token"):
+    st.sidebar.success(f"Logged in as {username}")
+    logout_button = st.sidebar.button("Log Out")
+    if logout_button:
+        st.session_state["api_token"] = None
+        st.sidebar.info("You have been logged out.")
+else:
+    # Show the login form if the user is not logged in
+    username = st.sidebar.text_input("Username", placeholder="Enter your username")
+    password = st.sidebar.text_input("Password", placeholder="Enter your password", type="password")
+    login_button = st.sidebar.button("Log In")
 
-if login_button:
-    if username and password:
-        # Authenticate and retrieve the token
-        token = authenticate(username, password)
-        if token:
-            st.session_state["api_token"] = token
-            st.sidebar.success("Logged in successfully!")
+    if login_button:
+        if username and password:
+            # Authenticate and retrieve the token
+            token = authenticate(username, password)
+            if token:
+                st.session_state["api_token"] = token
+                st.sidebar.success("Logged in successfully!")
+            else:
+                st.sidebar.error("Login failed. Please check your credentials.")
         else:
-            st.sidebar.error("Login failed. Please check your credentials.")
-    else:
-        st.sidebar.error("Please enter both username and password.")
+            st.sidebar.error("Please enter both username and password.")
 
 # Tabs for different tools
 tab1, tab2, tab3 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater", "Reporting"])
