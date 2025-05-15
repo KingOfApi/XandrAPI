@@ -29,16 +29,15 @@ def make_api_request(method, url, headers=None, params=None, json=None):
         logging.error(f"Invalid JSON response: {e}")
         return None
 
-def get_cities_for_country(token: str, country_name: str, city_name: str = None) -> list[dict] | None:
+def get_cities_for_country(token: str, country_name: str) -> list[dict] | None:
     """
-    Fetches city IDs for a given country and optionally filters by city name.
+    Fetches city IDs for a given country.
     Only active cities are included in the response.
     """
     url = f"{XANDR_BASE_URL}/city"
     headers = {"Authorization": token}
     params = {
-        "active": "true",  # Filter for active cities only
-        "name": city_name or ""  # Optionally filter by city name
+        "active": "true"  # Filter for active cities only
     }
 
     json_response = make_api_request("GET", url, headers=headers, params=params)
@@ -52,13 +51,13 @@ def get_cities_for_country(token: str, country_name: str, city_name: str = None)
 
     cities_data = json_response['response']['cities']
     filtered_data = [
-        {"id": city['id']}
+        {"id": city['id'], "name": city['name']}
         for city in cities_data
         if city['country_name'].strip().lower() == country_name.strip().lower()
     ]
 
     if not filtered_data:
-        st.warning(f"No active cities found for country: {country_name} and city: {city_name}.")
+        st.warning(f"No active cities found for country: {country_name}.")
         return None
 
     return filtered_data
