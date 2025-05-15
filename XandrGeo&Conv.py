@@ -96,12 +96,14 @@ def update_conversion_pixel(token: str, advertiser_id: int, line_item_id: int, p
     headers = {"Authorization": token}
 
     try:
+        # Log the GET request
+        logging.info(f"GET Request URL: {url}")
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         line_item_data = response.json()
 
-        # Log the full API response for debugging
-        logging.info(f"API Response for Line Item ID {line_item_id}: {line_item_data}")
+        # Log the GET response
+        logging.info(f"GET Response for Line Item ID {line_item_id}: {line_item_data}")
 
         if 'response' not in line_item_data or 'line-item' not in line_item_data['response']:
             st.error(f"Unexpected API response structure for Line Item ID: {line_item_id}.")
@@ -136,9 +138,15 @@ def update_conversion_pixel(token: str, advertiser_id: int, line_item_id: int, p
             }
         }
 
+        # Log the PUT request
+        logging.info(f"PUT Request URL: {url}")
+        logging.info(f"PUT Request Payload: {update_data}")
+
         update_response = requests.put(url, headers=headers, json=update_data)
         update_response.raise_for_status()
-        logging.info(f"Successfully updated pixels for Line Item ID {line_item_id}: {update_data}")
+
+        # Log the PUT response
+        logging.info(f"PUT Response for Line Item ID {line_item_id}: {update_response.json()}")
         return True
 
     except requests.exceptions.RequestException as e:
