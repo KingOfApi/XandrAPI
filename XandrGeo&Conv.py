@@ -320,7 +320,10 @@ else:
             st.sidebar.error("Please enter both username and password.")
 
 # Tabs for different tools
-tab1, tab2, tab3 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater", "Reporting"])
+if st.session_state["api_token"]:  # Only show tabs if the user is logged in
+    tab1, tab2 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater"])  # Exclude the Reporting tab
+else:
+    tab1, tab2 = st.tabs(["Geo Targeting Updater", "Conversion Pixel Updater"])  # Exclude the Reporting tab
 
 # --- Tab 1: Geo Targeting Updater ---
 with tab1:
@@ -461,75 +464,3 @@ with tab2:
                     st.success(f"Conversion pixel updated for Line Item ID: {line_item_id}")
                 else:
                     st.error(f"Failed to update conversion pixel for Line Item ID: {line_item_id}")
-
-# --- Tab 3: Reporting ---
-with tab3:
-    st.header("Reporting: Site Domain Performance")
-    if st.session_state["api_token"] is None:
-        st.error("Please log in to use this tool.")
-    else:
-        # Report Type Selection
-        report_type = st.selectbox(
-            "Select Report Type",
-            ["Site Domain Performance"]
-        )
-
-        # Date Range Selection
-        use_custom_dates = st.checkbox("Use Custom Date Range")
-        if use_custom_dates:
-            start_date = st.date_input("Start Date")
-            end_date = st.date_input("End Date")
-        else:
-            report_interval = st.selectbox(
-                "Select Report Interval",
-                ["yesterday", "last_7_days", "month_to_yesterday", "month_to_date"]
-            )
-
-        # Columns Selection
-        columns = st.multiselect(
-            "Select Columns",
-            [
-                "day", "site_domain", "imps", "clicks", "total_convs", "ctr",
-                "convs_rate", "booked_revenue", "cpm"
-            ],
-            default=["day", "site_domain", "imps", "clicks", "ctr", "booked_revenue"]
-        )
-
-        # Advertiser ID Input (if required)
-        advertiser_id_input = st.text_input(
-            "Advertiser ID (Required for Network Users)",
-            placeholder="Enter Advertiser ID"
-        )
-
-        # Generate Report Button
-        if st.button("Generate Report"):
-            # Validate Inputs
-            if use_custom_dates:
-                if not start_date or not end_date:
-                    st.error("Both Start Date and End Date are required for custom date ranges.")
-                    st.stop()
-                if start_date >= end_date:
-                    st.error("Start Date must be earlier than End Date.")
-                    st.stop()
-            elif not report_interval:
-                st.error("Please select a report interval.")
-                st.stop()
-
-            if not advertiser_id_input.strip():
-                st.error("Advertiser ID is required for network users.")
-                st.stop()
-
-            if not advertiser_id_input.strip().isdigit():
-                st.error("Advertiser ID must be a numeric value.")
-                st.stop()
-
-            # Construct the Report Payload
-            report_payload = {
-                "report": {
-                    "report_type": "site_domain_performance",
-                    "columns": columns,
-                    "format": "xlsx"
-                }
-            }
-
-            generate_and_poll_report(advertiser_id_input, use_custom_dates, start_date, end_date, report_interval, report_payload)
