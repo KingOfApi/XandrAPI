@@ -350,11 +350,32 @@ with tab1:
                 st.error("Country Name is required.")
                 st.stop()
 
+            # Split city names into a list
+            city_names = [city.strip() for city in city_name_input.split(",") if city.strip()]
+            if not city_names:
+                st.error("Please provide at least one city name.")
+                st.stop()
+
             # Fetch city targets
-            city_targets = get_cities_for_country(st.session_state["api_token"], country_name_input, city_name_input)
+            city_targets = get_cities_for_country(st.session_state["api_token"], country_name_input)
             if not city_targets:
                 st.error("No valid city targets found. Please check your inputs.")
                 st.stop()
+
+            # Check which cities were found
+            found_cities = []
+            not_found_cities = []
+            for city in city_names:
+                if any(target['name'].lower() == city.lower() for target in city_targets):
+                    found_cities.append(city)
+                else:
+                    not_found_cities.append(city)
+
+            # Notify the user about found and not-found cities
+            if found_cities:
+                st.success(f"Found cities: {', '.join(found_cities)}")
+            if not_found_cities:
+                st.warning(f"Cities not found: {', '.join(not_found_cities)}")
 
             # Determine line items to update
             line_item_ids = []
