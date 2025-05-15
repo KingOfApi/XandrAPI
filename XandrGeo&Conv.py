@@ -86,13 +86,13 @@ def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list
         return False
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> bool:
+def update_conversion_pixel(token: str, advertiser_id: int, line_item_id: int, pixel_id: int) -> bool:
     """
     Updates the conversion pixel for a given line item ID.
     If the pixel already exists, it updates its attributes. Otherwise, it adds the pixel.
     """
     # Step 1: Fetch the existing line item
-    url = f"{XANDR_BASE_URL}/line-item?id={line_item_id}"
+    url = f"{XANDR_BASE_URL}/line-item?id={line_item_id}&advertiser_id={advertiser_id}"
     headers = {"Authorization": token}
 
     try:
@@ -115,7 +115,7 @@ def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> boo
         # Step 3: Check if the pixel already exists
         pixel_exists = False
         for pixel in existing_pixels:
-            if pixel['id'] == pixel_id:
+            if pixel.get('id') == pixel_id:
                 # Update the pixel's state
                 pixel['state'] = "active"
                 pixel_exists = True
@@ -143,6 +143,8 @@ def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> boo
 
     except requests.exceptions.RequestException as e:
         st.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logging.error(f"API Error Response: {e.response.text}")
         logging.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
         return False
 
@@ -428,6 +430,7 @@ with tab2:
             for line_item_id in line_item_ids:
                 success = update_conversion_pixel(
                     token=st.session_state["api_token"],
+                    advertiser_id=int(advertiser_id_input.strip()),  # Pass advertiser_id from user input
                     line_item_id=line_item_id,
                     pixel_id=int(new_pixel_id_input.strip()),
                 )
