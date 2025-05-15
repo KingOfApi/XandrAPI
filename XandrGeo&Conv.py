@@ -85,6 +85,29 @@ def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list
         logging.error(f"Error updating geo targeting for profile ID {profile_id}: {e}")
         return False
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> bool:
+    """
+    Updates the conversion pixel for a given line item ID.
+    """
+    url = f"{XANDR_BASE_URL}/line-item?id={line_item_id}"
+    headers = {"Authorization": token}
+    data = {
+        "line-item": {
+            "id": line_item_id,
+            "conversion_pixel_ids": [pixel_id]
+        }
+    }
+
+    try:
+        response = requests.put(url, headers=headers, json=data)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
+        logging.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
+        return False
+
 def get_line_item_ids_from_io(token: str, insertion_order_id: int) -> list[int] | None:
     """Fetches line item IDs for a given insertion order ID."""
     url = f"{XANDR_BASE_URL}/insertion-order?id={insertion_order_id}"
@@ -335,7 +358,36 @@ with tab2:
             key="pixel_new_pixel_id"
         )
         if st.button("Update Conversion Pixels", key="pixel_update_button"):
-            st.write("Processing Conversion Pixel Updates...")  # Placeholder for logic
+            # Validate Inputs
+            if not new_pixel_id_input.strip():
+                st.error("New Conversion Pixel ID is required.")
+                st.stop()
+
+            if not new_pixel_id_input.strip().isdigit():
+                st.error("Conversion Pixel ID must be a numeric value.")
+                st.stop()
+
+            line_item_ids = []
+            if line_item_ids_input.strip():
+                # Parse line item IDs from user input
+                line_item_ids = [int(item.strip()) for item in line_item_ids_input.split(",") if item.strip().isdigit()]
+            elif insertion_order_id_input.strip():
+                # Fetch line item IDs from the insertion order
+                line_item_ids = get_line_item_ids_from_io(st.session_state["api_token"], int(insertion_order_id_input.strip()))
+                if not line_item_ids:
+                    st.error("No line items found for the provided Insertion Order ID.")
+                    st.stop()
+            else:
+                st.error("Either Line Item IDs or an Insertion Order ID is required.")
+                st.stop()
+
+            # Update Conversion Pixel for Each Line Item
+            for line_item_id in line_item_ids:
+                success = update_conversion_pixel(st.session_state["api_token"], line_item_id, int(new_pixel_id_input.strip()))
+                if success:
+                    st.success(f"Conversion pixel updated for Line Item ID: {line_item_id}")
+                else:
+                    st.error(f"Failed to update conversion pixel for Line Item ID: {line_item_id}")
 
 # --- Tab 3: Reporting ---
 with tab3:
