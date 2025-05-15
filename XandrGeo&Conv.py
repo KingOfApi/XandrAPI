@@ -86,25 +86,61 @@ def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list
         return False
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> bool:
+def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int, post_click_revenue: int = 0, post_view_revenue: int = 0) -> bool:
     """
     Updates the conversion pixel for a given line item ID.
+    If the pixel already exists, it updates its attributes. Otherwise, it adds the pixel.
     """
+    # Step 1: Fetch the existing line item
     url = f"{XANDR_BASE_URL}/line-item?id={line_item_id}"
     headers = {"Authorization": token}
-    data = {
-        "line-item": {
-            "id": line_item_id,
-            "conversion_pixel_ids": [pixel_id]
-        }
-    }
 
     try:
-        response = requests.put(url, headers=headers, json=data)
-        logging.info(f"Request Payload for Line Item ID {line_item_id}: {data}")
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
-        logging.info(f"API Response for Line Item ID {line_item_id}: {response.json()}")
+        line_item_data = response.json()
+
+        if 'response' not in line_item_data or 'line-item' not in line_item_data['response']:
+            st.error(f"Unexpected API response structure for Line Item ID: {line_item_id}.")
+            logging.error(f"Unexpected API response: {line_item_data}")
+            return False
+
+        # Step 2: Retrieve the existing pixels array
+        existing_pixels = line_item_data['response']['line-item'].get('pixels', [])
+
+        # Step 3: Check if the pixel already exists
+        pixel_exists = False
+        for pixel in existing_pixels:
+            if pixel['id'] == pixel_id:
+                # Update the pixel's attributes
+                pixel['state'] = "active"
+                pixel['post_click_revenue'] = post_click_revenue
+                pixel['post_view_revenue'] = post_view_revenue
+                pixel_exists = True
+                break
+
+        if not pixel_exists:
+            # Add the new pixel to the array
+            existing_pixels.append({
+                "id": pixel_id,
+                "state": "active",
+                "post_click_revenue": post_click_revenue,
+                "post_view_revenue": post_view_revenue
+            })
+
+        # Step 4: Send the updated pixels array back to the API
+        update_data = {
+            "line-item": {
+                "id": line_item_id,
+                "pixels": existing_pixels
+            }
+        }
+
+        update_response = requests.put(url, headers=headers, json=update_data)
+        update_response.raise_for_status()
+        logging.info(f"Successfully updated pixels for Line Item ID {line_item_id}: {update_data}")
         return True
+
     except requests.exceptions.RequestException as e:
         st.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
         logging.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
@@ -390,6 +426,19 @@ with tab2:
                     st.success(f"Conversion pixel updated for Line Item ID: {line_item_id}")
                 else:
                     st.error(f"Failed to update conversion pixel for Line Item ID: {line_item_id}")
+
+        success = update_conversion_pixel(
+            token=st.session_state["api_token"],
+            line_item_id=12345,
+            pixel_id=67890,
+            post_click_revenue=100,  # Optional: Set to 0 if not needed
+            post_view_revenue=50     # Optional: Set to 0 if not needed
+        )
+
+        if success:
+            st.success("Conversion pixel updated successfully!")
+        else:
+            st.error("Failed to update conversion pixel.")
 
 # --- Tab 3: Reporting ---
 with tab3:
