@@ -429,24 +429,17 @@ with tab2:
 
             # Update Conversion Pixel for Each Line Item
             for line_item_id in line_item_ids:
-                success = update_conversion_pixel(st.session_state["api_token"], line_item_id, int(new_pixel_id_input.strip()))
+                success = update_conversion_pixel(
+                    token=st.session_state["api_token"],
+                    line_item_id=line_item_id,
+                    pixel_id=int(new_pixel_id_input.strip()),
+                    post_click_revenue=100,  # Optional: Set to 0 if not needed
+                    post_view_revenue=50     # Optional: Set to 0 if not needed
+                )
                 if success:
                     st.success(f"Conversion pixel updated for Line Item ID: {line_item_id}")
                 else:
                     st.error(f"Failed to update conversion pixel for Line Item ID: {line_item_id}")
-
-        success = update_conversion_pixel(
-            token=st.session_state["api_token"],
-            line_item_id=12345,
-            pixel_id=67890,
-            post_click_revenue=100,  # Optional: Set to 0 if not needed
-            post_view_revenue=50     # Optional: Set to 0 if not needed
-        )
-
-        if success:
-            st.success("Conversion pixel updated successfully!")
-        else:
-            st.error("Failed to update conversion pixel.")
 
 # --- Tab 3: Reporting ---
 with tab3:
