@@ -100,6 +100,9 @@ def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int, post_c
         response.raise_for_status()
         line_item_data = response.json()
 
+        # Log the full API response for debugging
+        logging.info(f"API Response for Line Item ID {line_item_id}: {line_item_data}")
+
         if 'response' not in line_item_data or 'line-item' not in line_item_data['response']:
             st.error(f"Unexpected API response structure for Line Item ID: {line_item_id}.")
             logging.error(f"Unexpected API response: {line_item_data}")
@@ -410,6 +413,11 @@ with tab2:
                 # Parse line item IDs from user input
                 line_item_ids = [int(item.strip()) for item in line_item_ids_input.split(",") if item.strip().isdigit()]
             elif insertion_order_id_input.strip():
+                # Validate that the insertion order ID is numeric
+                if not insertion_order_id_input.strip().isdigit():
+                    st.error("Insertion Order ID must be a numeric value.")
+                    st.stop()
+
                 # Fetch line item IDs from the insertion order
                 line_item_ids = get_line_item_ids_from_io(st.session_state["api_token"], int(insertion_order_id_input.strip()))
                 if not line_item_ids:
