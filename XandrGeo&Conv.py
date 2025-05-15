@@ -86,7 +86,7 @@ def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list
         return False
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int, post_click_revenue: int = 0, post_view_revenue: int = 0) -> bool:
+def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> bool:
     """
     Updates the conversion pixel for a given line item ID.
     If the pixel already exists, it updates its attributes. Otherwise, it adds the pixel.
@@ -110,15 +110,14 @@ def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int, post_c
 
         # Step 2: Retrieve the existing pixels array
         existing_pixels = line_item_data['response']['line-item'].get('pixels', [])
+        logging.info(f"Existing Pixels for Line Item ID {line_item_id}: {existing_pixels}")
 
         # Step 3: Check if the pixel already exists
         pixel_exists = False
         for pixel in existing_pixels:
             if pixel['id'] == pixel_id:
-                # Update the pixel's attributes
+                # Update the pixel's state
                 pixel['state'] = "active"
-                pixel['post_click_revenue'] = post_click_revenue
-                pixel['post_view_revenue'] = post_view_revenue
                 pixel_exists = True
                 break
 
@@ -126,9 +125,7 @@ def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int, post_c
             # Add the new pixel to the array
             existing_pixels.append({
                 "id": pixel_id,
-                "state": "active",
-                "post_click_revenue": post_click_revenue,
-                "post_view_revenue": post_view_revenue
+                "state": "active"
             })
 
         # Step 4: Send the updated pixels array back to the API
@@ -433,8 +430,6 @@ with tab2:
                     token=st.session_state["api_token"],
                     line_item_id=line_item_id,
                     pixel_id=int(new_pixel_id_input.strip()),
-                    post_click_revenue=100,  # Optional: Set to 0 if not needed
-                    post_view_revenue=50     # Optional: Set to 0 if not needed
                 )
                 if success:
                     st.success(f"Conversion pixel updated for Line Item ID: {line_item_id}")
