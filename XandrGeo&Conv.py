@@ -41,6 +41,7 @@ def get_cities_for_country(token: str, country_name: str) -> list[dict] | None:
     }
 
     json_response = make_api_request("GET", url, headers=headers, params=params)
+    logging.info(f"API Response for cities: {json_response}")
     if not json_response:
         return None
 
@@ -53,7 +54,7 @@ def get_cities_for_country(token: str, country_name: str) -> list[dict] | None:
     filtered_data = [
         {"id": city['id'], "name": city['name']}
         for city in cities_data
-        if city['country_name'].strip().lower() == country_name.strip().lower()
+        if city.get('country_name', '').strip().lower() == country_name.strip().lower()
     ]
 
     if not filtered_data:
