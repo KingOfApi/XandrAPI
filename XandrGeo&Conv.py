@@ -397,6 +397,21 @@ with tab2:
             help="Provide the ID of the new conversion pixel to apply.",
             key="pixel_new_pixel_id"
         )
+        advertiser_id_input = st.text_input(
+            "Advertiser ID (Required)",
+            placeholder="Enter Advertiser ID",
+            help="Provide the Advertiser ID associated with the line items.",
+            key="pixel_advertiser_id"
+        )
+
+        if not advertiser_id_input.strip():
+            st.error("Advertiser ID is required.")
+            st.stop()
+
+        if not advertiser_id_input.strip().isdigit():
+            st.error("Advertiser ID must be a numeric value.")
+            st.stop()
+
         if st.button("Update Conversion Pixels", key="pixel_update_button"):
             # Validate Inputs
             if not new_pixel_id_input.strip():
