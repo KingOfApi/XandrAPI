@@ -350,43 +350,9 @@ with tab1:
                 st.error("Country Name is required.")
                 st.stop()
 
-            # Split city names into a list
-            city_names = [city.strip() for city in city_name_input.split(",") if city.strip()]
-            if not city_names:
-                st.error("Please provide at least one city name.")
-                st.stop()
-
             # Fetch city targets
             city_targets = get_cities_for_country(st.session_state["api_token"], country_name_input)
             if not city_targets:
-                st.error("No valid city targets found. Please check your inputs.")
-                st.stop()
-
-            # Check which cities were found
-            found_cities = []
-            not_found_cities = []
-            valid_city_targets_for_update = []  # Use a new list for the correct structure
-
-            for city_name_from_input in city_names:
-                city_matched = False
-                for city_data_from_api in city_targets:  # city_targets is from get_cities_for_country
-                    if city_data_from_api['name'].lower() == city_name_from_input.lower():
-                        found_cities.append(city_name_from_input)
-                        # Ensure the object added to the list for the API call is just {"id": ...}
-                        valid_city_targets_for_update.append({"id": city_data_from_api["id"]})
-                        city_matched = True
-                        break  # Found the city, no need to check further in city_targets for this city_name_from_input
-                if not city_matched:
-                    not_found_cities.append(city_name_from_input)
-
-            # Notify the user about found and not-found cities
-            if found_cities:
-                st.success(f"Found cities: {', '.join(found_cities)}")
-            if not_found_cities:
-                st.warning(f"Cities not found: {', '.join(not_found_cities)}")
-
-            # If no valid city targets are found, stop execution
-            if not valid_city_targets_for_update:  # Check the new list
                 st.error("No valid city targets found. Please check your inputs.")
                 st.stop()
 
@@ -415,7 +381,7 @@ with tab1:
                 success = update_line_item_profile_geo(
                     st.session_state["api_token"],
                     profile_id,
-                    valid_city_targets_for_update  # Pass the corrected list
+                    city_targets  # Pass the full list of city targets
                 )
                 if success:
                     st.success(f"Geo targeting updated for Line Item ID: {line_item_id}")
