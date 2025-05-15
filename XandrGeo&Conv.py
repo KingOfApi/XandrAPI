@@ -71,13 +71,14 @@ def update_line_item_profile_geo(token: str, profile_id: int, city_targets: list
         "profile": {
             "id": profile_id,
             "city_targets": city_targets,
-            "city_action": "include"
+            "city_action": "include"  # Replace or include cities
         }
     }
 
     try:
         response = requests.put(url, headers=headers, json=data)
         response.raise_for_status()
+        logging.info(f"Geo targeting updated for Profile ID {profile_id}: {data}")
         return True
     except requests.exceptions.RequestException as e:
         st.error(f"Error updating geo targeting for profile ID {profile_id}: {e}")
@@ -186,7 +187,7 @@ def get_profile_id_for_line_item(token: str, line_item_id: int) -> int | None:
         logging.error(f"Unexpected API response: {json_response}")
         return None
 
-    return json_response['response']['line-item']['profile_id']
+    return json_response['response']['line-item'].get('profile_id')
 
 def authenticate(username: str, password: str) -> str | None:
     """Authenticates the user and retrieves the API token."""
@@ -364,9 +365,12 @@ with tab1:
             # Check which cities were found
             found_cities = []
             not_found_cities = []
+            valid_city_targets = []
             for city in city_names:
-                if any(target['name'].lower() == city.lower() for target in city_targets):
+                matching_cities = [target for target in city_targets if target['name'].lower() == city.lower()]
+                if matching_cities:
                     found_cities.append(city)
+                    valid_city_targets.extend(matching_cities)
                 else:
                     not_found_cities.append(city)
 
@@ -375,6 +379,11 @@ with tab1:
                 st.success(f"Found cities: {', '.join(found_cities)}")
             if not_found_cities:
                 st.warning(f"Cities not found: {', '.join(not_found_cities)}")
+
+            # If no valid city targets are found, stop execution
+            if not valid_city_targets:
+                st.error("No valid city targets found. Please check your inputs.")
+                st.stop()
 
             # Determine line items to update
             line_item_ids = []
@@ -398,7 +407,7 @@ with tab1:
                     st.error(f"Profile ID not found for Line Item ID: {line_item_id}")
                     continue
 
-                success = update_line_item_profile_geo(st.session_state["api_token"], profile_id, city_targets)
+                success = update_line_item_profile_geo(st.session_state["api_token"], profile_id, valid_city_targets)
                 if success:
                     st.success(f"Geo targeting updated for Line Item ID: {line_item_id}")
                 else:
