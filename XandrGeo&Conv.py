@@ -101,7 +101,9 @@ def update_conversion_pixel(token: str, line_item_id: int, pixel_id: int) -> boo
 
     try:
         response = requests.put(url, headers=headers, json=data)
+        logging.info(f"Request Payload for Line Item ID {line_item_id}: {data}")
         response.raise_for_status()
+        logging.info(f"API Response for Line Item ID {line_item_id}: {response.json()}")
         return True
     except requests.exceptions.RequestException as e:
         st.error(f"Error updating conversion pixel for Line Item ID {line_item_id}: {e}")
